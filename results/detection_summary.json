@@ -1,0 +1,106 @@
+{
+  "project": {
+    "name": "Snort Rules for IoT Botnet Attacks",
+    "code": "CSL-I09",
+    "student": "Kushal Kumar",
+    "roll": "23ESKCY026",
+    "college": "SKIT Jaipur",
+    "faculty": "Vikash Dhankar"
+  },
+  "timestamp": "2026-11-16T05:02:04.026035+00:00",
+  "alert_metrics": {
+    "total_alerts": 138,
+    "by_sid": {
+      "1000001": 32,
+      "1000002": 24,
+      "1000008": 34,
+      "1000003": 22,
+      "1000004": 6,
+      "1000005": 6,
+      "1000010": 2,
+      "1000006": 6,
+      "1000007": 6
+    },
+    "by_src_ip": {
+      "192.168.56.100": 114,
+      "192.168.56.105": 24
+    },
+    "by_classtype": {
+      "attempted-recon": 90,
+      "attempted-user": 36,
+      "trojan-activity": 12
+    }
+  },
+  "detection_metrics": {
+    "true_positives": 6,
+    "true_negatives": 1,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "true_positive_rate": 1.0,
+    "false_positive_rate": 0.0,
+    "detection_rate": 1.0
+  },
+  "test_cases": [
+    {
+      "tc": "TC01",
+      "sid": "1000001",
+      "description": "Telnet SYN to IoT Camera port 23",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC02",
+      "sid": "1000002",
+      "description": "Telnet SYN to alt port 2323",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC03",
+      "sid": "1000003",
+      "description": "Mirai brute-force username root",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC04",
+      "sid": "1000004",
+      "description": "Mirai credential root:xc3511",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC05",
+      "sid": "1000005",
+      "description": "Mirai credential root:vizxv",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC06",
+      "sid": "1000006",
+      "description": "Mirai post-auth /bin/busybox MIRAI",
+      "expected": "FIRE",
+      "actual": "FIRE",
+      "status": "TP"
+    },
+    {
+      "tc": "TC07",
+      "sid": "N/A",
+      "description": "Legitimate admin HTTPS traffic (no alert)",
+      "expected": "NO FIRE",
+      "actual": "NO FIRE",
+      "status": "TN"
+    }
+  ],
+  "rule_validation": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0
+  }
+}

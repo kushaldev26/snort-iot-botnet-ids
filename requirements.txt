@@ -1,0 +1,7 @@
+# CSL-I09: Snort Rules for IoT Botnet Attacks - Python Dependencies
+# Student: Kushal Kumar | Roll: 23ESKCY026 | SKIT Jaipur | Nov 16, 2026
+
+python-docx>=1.1.0
+reportlab>=4.0.0
+matplotlib>=3.7.0
+Pillow>=10.0.0

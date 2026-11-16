@@ -1,0 +1,256 @@
+################################################################################
+#  SNORT LOCAL RULES FILE
+#  Project  : CSL-I09 B.Tech Cyber Security Lab Mini Project
+#  Title    : Snort Rules for IoT Botnet Attacks (Mirai / Bashlite family)
+#  Student  : Kushal Kumar  |  Roll: 23ESKCY026
+#  Institute: SKIT Jaipur
+#  Date     : 2024-2025
+#
+#  ===== RULESET OVERVIEW =================================================
+#  This file contains 10 custom Snort 2.9.x detection rules (SIDs
+#  1000001–1000010) designed to detect the lifecycle stages of an IoT
+#  botnet attack, specifically modelled on the Mirai botnet family.
+#
+#  Attack phases covered:
+#    Phase 1 – Reconnaissance : SIDs 1000001, 1000002, 1000008
+#    Phase 2 – Credential BF  : SIDs 1000003, 1000004, 1000005, 1000010
+#    Phase 3 – Payload Deploy : SIDs 1000006, 1000007
+#    Phase 4 – C2 / Flooding  : SID  1000009
+#
+#  ===== LAB NETWORK TOPOLOGY =============================================
+#  HOME_NET       : 192.168.56.0/24   (VirtualBox host-only adapter)
+#  EXTERNAL_NET   : !HOME_NET
+#
+#  192.168.56.5   : Legitimate Admin Workstation (ADMIN_HOST)
+#  192.168.56.10  : Target IoT IP Camera          (Telnet:23/2323, HTTP:80, SSH:22)
+#  192.168.56.11  : Target Smart Home MQTT Gateway (MQTT:1883)
+#  192.168.56.100 : Simulated Mirai Bot / Brute-Force Attacker Node
+#  192.168.56.105 : Secondary Port Scanner Node
+#
+#  ===== SYNTAX NOTES =====================================================
+#  All rules conform to Snort 2.9.x rule syntax.
+#  "flow:to_server,established" is used where full session context is
+#  needed. "flags:S,12" (SYN only, ignore reserved bits) is used for
+#  raw SYN detection where the stream is NOT yet established.
+#
+#  ===== ETHICAL / LEGAL DISCLAIMER ======================================
+#  These rules are written EXCLUSIVELY for use inside the SKIT Jaipur
+#  CSL-I09 lab environment. The IP addresses are non-routable RFC-1918
+#  private addresses within a closed VirtualBox network. These rules
+#  MUST NOT be deployed on any live, production, or public-facing network
+#  without authorisation from the network owner. Unauthorised network
+#  monitoring or intrusion detection is illegal under the Information
+#  Technology Act 2000 (India) and equivalent legislation worldwide.
+#  Misuse of these materials is entirely the responsibility of the user.
+################################################################################
+
+
+# ==============================================================================
+# SID 1000001 – Telnet Connection Attempt to IoT Camera (Standard Port 23)
+# Phase: Reconnaissance / Initial Access
+#
+# Detects any TCP SYN packet from an external host (or attacker node) destined
+# for port 23 on any HOME_NET host. Mirai begins its attack by scanning the
+# entire internet (or a /24 subnet in the lab) for Telnet-enabled devices.
+# A bare SYN on port 23 is the first indicator that a device is being probed.
+# flags:S,12 matches SYN packets while ignoring the two reserved TCP bits.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET 23 \
+    (msg:"IOT-BOTNET Telnet connection attempt to IoT device port 23"; \
+     flags:S,12; \
+     flow:to_server; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-recon; \
+     sid:1000001; rev:1;)
+
+
+# ==============================================================================
+# SID 1000002 – Telnet Connection Attempt on Alternate Port 2323 (Mirai-Style)
+# Phase: Reconnaissance / Initial Access
+#
+# Mirai and its variants frequently also scan port 2323, the unofficial
+# alternate Telnet port used by many cheap IP cameras and DVR devices that
+# ship with duplicate Telnet daemons. This rule mirrors SID 1000001 but
+# targets port 2323. Combined SID 1000001+1000002 hits confirm Mirai-pattern
+# scanning behaviour rather than a single opportunistic probe.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET 2323 \
+    (msg:"IOT-BOTNET Mirai-style Telnet connection attempt on alt-port 2323"; \
+     flags:S,12; \
+     flow:to_server; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-recon; \
+     sid:1000002; rev:1;)
+
+
+# ==============================================================================
+# SID 1000003 – Mirai Telnet Brute-Force: Username "root" Detected
+# Phase: Credential Brute-Force
+#
+# After a Telnet banner is received, Mirai sends the string "root" as the
+# username for every credential attempt. This rule inspects reassembled TCP
+# stream content (flow:to_server,established) for the literal string "root"
+# within the first 50 bytes of a Telnet session payload. The within:50
+# constraint limits false positives from legitimate traffic that might contain
+# the word "root" deep in packet data.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai Telnet brute-force username root detected"; \
+     flow:to_server,established; \
+     content:"root"; nocase; within:50; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-user; \
+     sid:1000003; rev:1;)
+
+
+# ==============================================================================
+# SID 1000004 – Mirai Factory Default Credential "root:xc3511"
+# Phase: Credential Brute-Force
+#
+# "xc3511" is one of the most commonly found default passwords in Mirai's
+# hard-coded credential list (62 username:password pairs). It was the default
+# for a major Chinese IP camera OEM and affected millions of devices. Detection
+# of this string in a Telnet session is a high-confidence indicator of a Mirai
+# credential stuffing attack.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai factory credential attempt root:xc3511 detected"; \
+     flow:to_server,established; \
+     content:"xc3511"; nocase; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-user; \
+     sid:1000004; rev:1;)
+
+
+# ==============================================================================
+# SID 1000005 – Mirai Factory Default Credential "root:vizxv"
+# Phase: Credential Brute-Force
+#
+# "vizxv" is another well-known Mirai default credential targeting Dahua-brand
+# IP cameras. Its presence in a Telnet data stream is an unambiguous indicator
+# of Mirai-family credential brute-forcing. When combined with SID 1000003
+# (root username), this gives a correlated multi-rule detection.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai factory credential attempt root:vizxv detected"; \
+     flow:to_server,established; \
+     content:"vizxv"; nocase; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-user; \
+     sid:1000005; rev:1;)
+
+
+# ==============================================================================
+# SID 1000006 – Mirai Post-Auth Loader Command "/bin/busybox MIRAI"
+# Phase: Payload Deployment
+#
+# Once Mirai gains a Telnet shell on a device, it executes the command
+# "/bin/busybox MIRAI" (or a variant) to identify whether its dropped binary
+# is running correctly and to disable other bots competing for the device.
+# The two content keywords are ordered: first "/bin/busybox" is found, then
+# "MIRAI" is required within 30 bytes of the previous match (distance:0
+# means immediately after the first content's end position, within:30 sets
+# the search window). This catches the exact Mirai shell command without
+# matching partial strings.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai post-auth shell command /bin/busybox MIRAI detected"; \
+     flow:to_server,established; \
+     content:"/bin/busybox"; \
+     content:"MIRAI"; distance:0; within:30; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:trojan-activity; \
+     sid:1000006; rev:1;)
+
+
+# ==============================================================================
+# SID 1000007 – Mirai wget/tftp Payload Download Command
+# Phase: Payload Deployment
+#
+# After successfully logging in, Mirai downloads its ARM/MIPS/x86 binary using
+# either wget or tftp from a command-and-control server. This rule uses a PCRE
+# (Perl-Compatible Regular Expression) to match the pattern:
+#   /wget http...  or  /tftp http...  (case-insensitive)
+# in the stream payload. This covers common obfuscation variants (e.g. mixed
+# case wget) and both download methods used by Mirai droppers.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai wget or tftp payload download command detected"; \
+     flow:to_server,established; \
+     pcre:"/(wget|tftp)\s+http/i"; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:trojan-activity; \
+     sid:1000007; rev:1;)
+
+
+# ==============================================================================
+# SID 1000008 – TCP SYN Port Scan from Single Source (Mirai Scanning Phase)
+# Phase: Reconnaissance
+#
+# Mirai's scanner generates rapid TCP SYN packets across random destination IPs
+# and ports to discover new victim devices. This rule fires when a single source
+# IP sends 20+ SYN packets within 5 seconds to HOME_NET on any port.
+#   flags:S,12       – match SYN-only packets (ignore reserved bits)
+#   detection_filter – suppress the alert until threshold is crossed
+#   threshold        – emit alert at most once per 5-second window per source
+# The double detection_filter+threshold is intentional: detection_filter
+# suppresses until count is hit; threshold prevents alert flood after that.
+# ==============================================================================
+alert tcp any any -> $HOME_NET any \
+    (msg:"IOT-BOTNET TCP SYN port scan detected from single source"; \
+     flags:S,12; \
+     flow:to_server; \
+     detection_filter:track by_src, count 20, seconds 5; \
+     threshold:type both, track by_src, count 20, seconds 5; \
+     metadata:service tcp, affected_product Network_Infrastructure; \
+     classtype:attempted-recon; \
+     sid:1000008; rev:1;)
+
+
+# ==============================================================================
+# SID 1000009 – MQTT CONNECT Flood on Port 1883 (IoT Gateway Attack)
+# Phase: C2 / Resource Exhaustion
+#
+# Mirai-infected devices participating in a DDoS campaign may target MQTT
+# brokers with floods of CONNECT packets (first byte 0x10 = MQTT CONNECT
+# control packet type). This rule matches the MQTT fixed-header byte (0x10)
+# at depth:1 (first byte only) and fires only when a single source sends 30+
+# such packets in 10 seconds, indicating a connection flood rather than
+# legitimate reconnect behaviour.
+# ==============================================================================
+alert tcp any any -> $HOME_NET 1883 \
+    (msg:"IOT-BOTNET MQTT CONNECT flood detected on port 1883"; \
+     flow:to_server; \
+     content:"|10|"; depth:1; \
+     detection_filter:track by_src, count 30, seconds 10; \
+     metadata:service mqtt, affected_product Smart_Home_MQTT_Gateway; \
+     classtype:denial-of-service; \
+     sid:1000009; rev:1;)
+
+
+# ==============================================================================
+# SID 1000010 – Mirai admin:admin Default Credential Attempt
+# Phase: Credential Brute-Force
+#
+# "admin" / "admin" is the most ubiquitous IoT default credential. Mirai's
+# credential list includes multiple admin variants. This rule detects the
+# pattern of "admin" appearing twice within 10 bytes in a Telnet session
+# payload (the first occurrence is the username field, the second is the
+# password field sent in rapid succession). distance:0 anchors the second
+# match immediately after the first; within:10 limits the search window to
+# avoid false positives from legitimate admin mentions in HTTP sessions.
+# ==============================================================================
+alert tcp $EXTERNAL_NET any -> $HOME_NET [23,2323] \
+    (msg:"IOT-BOTNET Mirai admin:admin default credential attempt detected"; \
+     flow:to_server,established; \
+     content:"admin"; nocase; \
+     content:"admin"; nocase; distance:0; within:10; \
+     metadata:service telnet, affected_product IoT_IP_Camera; \
+     classtype:attempted-user; \
+     sid:1000010; rev:1;)
+
+
+################################################################################
+# END OF local.rules
+# Total rules: 10  |  SID range: 1000001 – 1000010
+################################################################################

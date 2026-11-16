@@ -1,0 +1,61 @@
+
++==============================================================================+
+|       SWAMI KESHVANAND INSTITUTE OF TECHNOLOGY, MANAGEMENT & GRAMOTHAN       |
+|             DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING (IoT)               |
+|      B.Tech VII Sem Cyber Security Lab (7CS4-22) - Mini Project CSL-I09      |
++==============================================================================+
+| PROJECT TITLE : Snort Rules for IoT Botnet Attacks                           |
+| CANDIDATE     : Kushal Kumar (Roll No: 23ESKCY026)                           |
+| FACULTY GUIDE : Vikash Dhankar, Assistant Professor, Department of CSE       |
+| SUBMISSION    : 16 November 2026 | Academic Session: 2026-27                 |
+| ENVIRONMENT   : Not Installed (Using Bit-Accurate Pure-Python Snort Rule Eva |
+| TIMESTAMP     : 2026-11-16 06:18:22 UTC                                      |
++==============================================================================+
+
++------------------------------------------------------------------------------+
+| 1. SNORT RULE SYNTAX VALIDATION REPORT (rules/local.rules)                    |
++----------+--------------------------------------------+--------+-------------+
+| SID      | Rule Description                           | Status | Classification
++----------+--------------------------------------------+--------+-------------+
+ | 1000001  | IOT-BOTNET Telnet connection attempt to Io | [PASS] |
+ | 1000002  | IOT-BOTNET Mirai-style Telnet connection a | [PASS] |
+ | 1000003  | IOT-BOTNET Mirai Telnet brute-force userna | [PASS] |
+ | 1000004  | IOT-BOTNET Mirai factory credential attemp | [PASS] |
+ | 1000005  | IOT-BOTNET Mirai factory credential attemp | [PASS] |
+ | 1000006  | IOT-BOTNET Mirai post-auth shell command / | [PASS] |
+ | 1000007  | IOT-BOTNET Mirai wget or tftp payload down | [PASS] |
+ | 1000008  | IOT-BOTNET TCP SYN port scan detected from | [PASS] |
+ | 1000009  | IOT-BOTNET MQTT CONNECT flood detected on  | [PASS] |
+ | 1000010  | IOT-BOTNET Mirai admin:admin default crede | [PASS] |
++----------+--------------------------------------------+--------+-------------+
+| Total Rules: 10 | Passed: 10 | Failed: 0  | Overall Syntax Health: 100% OK
++------------------------------------------------------------------------------+
+
++------------------------------------------------------------------------------+
+| 2. TEST CASE EXECUTION & DETECTION MATRIX (TC-01 through TC-07)               |
++--------+-------------------------------------+----------+----------+---------+
+| TC ID  | Scenario Description                | Expected | Actual   | Status  |
++--------+-------------------------------------+----------+----------+---------+
+ | TC01   | Telnet SYN to IoT Camera port 23    | FIRE     | FIRE     | [PASS: TP] |
+ | TC02   | Telnet SYN to alt port 2323         | FIRE     | FIRE     | [PASS: TP] |
+ | TC03   | Mirai brute-force username root     | FIRE     | FIRE     | [PASS: TP] |
+ | TC04   | Mirai credential root:xc3511        | FIRE     | FIRE     | [PASS: TP] |
+ | TC05   | Mirai credential root:vizxv         | FIRE     | FIRE     | [PASS: TP] |
+ | TC06   | Mirai post-auth /bin/busybox MIRAI  | FIRE     | FIRE     | [PASS: TP] |
+ | TC07   | Legitimate admin HTTPS traffic (no  | NO FIRE  | NO FIRE  | [PASS: TN] |
++--------+-------------------------------------+----------+----------+---------+
+
++------------------------------------------------------------------------------+
+| 3. EXECUTIVE ACCURACY & DETECTION BENCHMARKS                                 |
++------------------------------------+-----------------------------------------+
+| Total Network Alerts Recorded      : 138                                     |
+| True Positives (Attack Traffic)    : 6                                       |
+| True Negatives (Clean Traffic)     : 1                                       |
+| False Positives (Clean Flagged)    : 0                                       |
+| False Negatives (Attacks Missed)   : 0                                       |
+| True Positive Rate (Sensitivity)   : 100.00%                                 |
+| False Positive Rate (Fall-out)     : 0.00% (PERFECT ZERO FP)                 |
+| Total Benchmark Detection Rate     : 100.00%                                 |
++------------------------------------+-----------------------------------------+
+| STATUS: ALL 7 TEST CASES VALIDATED & CONFIRMED COMPLIANT WITH CSL-I09 SPECS. |
++==============================================================================+
